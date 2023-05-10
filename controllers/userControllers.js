@@ -1,6 +1,7 @@
 const Users   = require("../models/user.js");
 const jwt = require("jsonwebtoken");
 const bcrypt  = require('bcrypt');
+const {genToken} = require("../authentication/jwt.js");
 
 const saltRounds = 10;
 const JWT_SECRET = "newtonSchool";
@@ -63,6 +64,24 @@ const loginUser =async (req, res) => {
     const password = req.body.password;
 
     //Write your code here.
+    const user = await Users.findOne({email});
+
+    if(!user) return res.status(404).json({
+        message: 'User with this E-mail does not exist !!',
+        status: 'fail'
+    })
+
+    const isValid = await bcrypt.compare(password, user.password);
+
+    if(!isValid) return res.status(403).json({
+        message: 'Invalid Password, try again !!',
+        status: 'fail'
+    })
+
+    return res.status(200).json({
+        status : "success",
+        token : genToken(user.email, JWT_SECRET)
+    })
 
 }
 
@@ -120,6 +139,29 @@ const signupUser = async (req, res) => {
     const {email, password, name, role} = req.body;
 
      //Write your code here.
+    const isExist = await Users.findOne({email});
+
+    if(isExist) return res.status(409).json({
+        "status": 'fail',
+        "message": 'User with given Email allready register'
+    });
+
+    const user = new Users({
+        email,
+        password,
+        name,
+        role
+    })
+
+    const salt = await bcrypt.genSalt(saltRounds);
+    user.password = await bcrypt.hash(password, salt);
+    const newUser = await user.save();
+
+    return res.status(200).json({
+        message: 'User SignedUp successfully',
+        status: 'success',
+        data : newUser
+    })
 
 }
 
